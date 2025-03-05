@@ -388,12 +388,18 @@ impl TryFrom<&str> for IpAddr {
     type Error = AddrParseError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match Ipv4Addr::try_from(value) {
-            Ok(v4) => Ok(Self::V4(v4)),
-            Err(_) => match Ipv6Addr::try_from(value) {
-                Ok(v6) => Ok(Self::V6(v6)),
-                Err(e) => Err(e),
-            },
+        if let Ok(v4) = Ipv4Addr::try_from(value) {
+            return Ok(Self::V4(v4));
+        }
+        let cleaned = if value.starts_with('[') && value.ends_with(']') {
+            &value[1..value.len() - 1]
+        } else {
+            value
+        };
+
+        match Ipv6Addr::try_from(cleaned) {
+            Ok(v6) => Ok(Self::V6(v6)),
+            Err(e) => Err(e),
         }
     }
 }
