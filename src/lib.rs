@@ -131,6 +131,17 @@ pub enum PrivateKeyDer<'a> {
     Pkcs8(PrivatePkcs8KeyDer<'a>),
 }
 
+#[cfg(feature = "alloc")]
+impl zeroize::Zeroize for PrivateKeyDer<'static> {
+    fn zeroize(&mut self) {
+        match self {
+            Self::Pkcs1(key) => key.zeroize(),
+            Self::Sec1(key) => key.zeroize(),
+            Self::Pkcs8(key) => key.zeroize(),
+        }
+    }
+}
+
 impl PrivateKeyDer<'_> {
     /// Clone the private key to a `'static` value
     #[cfg(feature = "alloc")]
@@ -314,6 +325,13 @@ impl PrivatePkcs1KeyDer<'_> {
 }
 
 #[cfg(feature = "alloc")]
+impl zeroize::Zeroize for PrivatePkcs1KeyDer<'static> {
+    fn zeroize(&mut self) {
+        self.0.0.zeroize()
+    }
+}
+
+#[cfg(feature = "alloc")]
 impl PemObjectFilter for PrivatePkcs1KeyDer<'static> {
     const KIND: SectionKind = SectionKind::RsaPrivateKey;
 }
@@ -370,6 +388,13 @@ impl PrivateSec1KeyDer<'_> {
     /// Yield the DER-encoded bytes of the private key
     pub fn secret_sec1_der(&self) -> &[u8] {
         self.0.as_ref()
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl zeroize::Zeroize for PrivateSec1KeyDer<'static> {
+    fn zeroize(&mut self) {
+        self.0.0.zeroize()
     }
 }
 
@@ -431,6 +456,13 @@ impl PrivatePkcs8KeyDer<'_> {
     /// Yield the DER-encoded bytes of the private key
     pub fn secret_pkcs8_der(&self) -> &[u8] {
         self.0.as_ref()
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl zeroize::Zeroize for PrivatePkcs8KeyDer<'static> {
+    fn zeroize(&mut self) {
+        self.0.0.zeroize()
     }
 }
 
@@ -682,7 +714,7 @@ impl CertificateDer<'_> {
     /// Converts this certificate into its owned variant, unfreezing borrowed content (if any)
     #[cfg(feature = "alloc")]
     pub fn into_owned(self) -> CertificateDer<'static> {
-        CertificateDer(Der(self.0 .0.into_owned()))
+        CertificateDer(Der(self.0.0.into_owned()))
     }
 }
 
@@ -745,7 +777,7 @@ impl SubjectPublicKeyInfoDer<'_> {
     /// Converts this SubjectPublicKeyInfo into its owned variant, unfreezing borrowed content (if any)
     #[cfg(feature = "alloc")]
     pub fn into_owned(self) -> SubjectPublicKeyInfoDer<'static> {
-        SubjectPublicKeyInfoDer(Der(self.0 .0.into_owned()))
+        SubjectPublicKeyInfoDer(Der(self.0.0.into_owned()))
     }
 }
 
@@ -927,12 +959,12 @@ impl UnixTime {
     /// Convert a `Duration` since the start of 1970 to a `UnixTime`
     ///
     /// The `duration` must be relative to the Unix epoch.
-    pub fn since_unix_epoch(duration: Duration) -> Self {
+    pub const fn since_unix_epoch(duration: Duration) -> Self {
         Self(duration.as_secs())
     }
 
     /// Number of seconds since the Unix epoch
-    pub fn as_secs(&self) -> u64 {
+    pub const fn as_secs(&self) -> u64 {
         self.0
     }
 }
@@ -1002,6 +1034,16 @@ impl BytesInner<'_> {
     }
 }
 
+#[cfg(feature = "alloc")]
+impl zeroize::Zeroize for BytesInner<'static> {
+    fn zeroize(&mut self) {
+        match self {
+            BytesInner::Owned(vec) => vec.zeroize(),
+            BytesInner::Borrowed(_) => (),
+        }
+    }
+}
+
 impl AsRef<[u8]> for BytesInner<'_> {
     fn as_ref(&self) -> &[u8] {
         match &self {
@@ -1026,7 +1068,7 @@ fn hex<'a>(f: &mut fmt::Formatter<'_>, payload: impl IntoIterator<Item = &'a u8>
         if i == 0 {
             write!(f, "0x")?;
         }
-        write!(f, "{:02x}", b)?;
+        write!(f, "{b:02x}")?;
     }
     Ok(())
 }
@@ -1038,13 +1080,13 @@ mod tests {
     #[test]
     fn der_debug() {
         let der = Der::from_slice(&[0x01, 0x02, 0x03]);
-        assert_eq!(format!("{:?}", der), "0x010203");
+        assert_eq!(format!("{der:?}"), "0x010203");
     }
 
     #[test]
     fn alg_id_debug() {
         let alg_id = AlgorithmIdentifier::from_slice(&[0x01, 0x02, 0x03]);
-        assert_eq!(format!("{:?}", alg_id), "0x010203");
+        assert_eq!(format!("{alg_id:?}"), "0x010203");
     }
 
     #[test]
